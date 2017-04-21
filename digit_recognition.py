@@ -49,11 +49,22 @@ w2 = numpy.array([[]]);
 p = 1;
 
 if is_training == 0:
-	input_set = 2;
+	# input_set = 2;
 	x_inputes = numpy.array(training_set).astype(float);
 	
-	answer = x_inputes[:,0][numpy.newaxis].T
-	answer = array_normalize_expected_digit_array(answer, numpy.ones((answer.shape[0], answer.shape[1])))
+	d = x_inputes[:,0][numpy.newaxis].T
+	generator_d = d;
+
+	d = numpy.append(d, generator_d, 1);
+	d = numpy.append(d, generator_d, 1);
+	d = numpy.append(d, generator_d, 1);
+	d = numpy.append(d, generator_d, 1);
+	d = numpy.append(d, generator_d, 1);
+	d = numpy.append(d, generator_d, 1);
+	d = numpy.append(d, generator_d, 1);
+	d = numpy.append(d, generator_d, 1);
+	d = numpy.append(d, generator_d, 1);
+	d = array_normalize_expected_digit_array(d, numpy.array([[0,1,2,3,4,5,6,7,8,9]]))
 
 	x_inputes = x_inputes[:,1:];
 	x_inputes = x_inputes * (0.0039)
@@ -69,18 +80,31 @@ if is_training == 0:
 	y2 = numpy.dot(z1, w2);
 	z2 = array_f(y2);
 
-	diff = answer - z2;
+	diff = d - z2;
+	# print 'lets see how many are correct. where ever there is a 1 there\'s an error...'
 	dist = numpy.absolute(diff);
-	incorrect = numpy.dot(diff.T, numpy.ones((diff.shape[0], 1)))
+	# print ''
+	errors = numpy.count_nonzero(dist)
+	total = dist.shape[0] * dist.shape[1]
+	success = total - errors
+	ratio = (success * 1.0) / (total * 1.0)
+	print ''
+	print 'total cells: ' + str(total)
+	print 'number of errors: ' + str(errors)
+	print 'number of successes:' + str(success)
+	print 'percentage correct:' + str(ratio)
+	# numpy.set_printoptions(threshold='nan');
 
-	ratio = incorrect / diff.shape[0];
+	# print dist
+	# incorrect = numpy.dot(diff.T, numpy.ones((diff.shape[0], 1)))
+
+	# ratio = incorrect / diff.shape[0];
 	
-	print "how many were wrong? " + str(incorrect) + " | actual answer:" + str(ratio);
+	# print "how many were wrong? " + str(incorrect) + " | actual answer:" + str(ratio);
 	quit();
 
 
-quit();
-step_size = 0.5
+step_size = 1
 
 # first_row = training_set.shape[1] ## this should get the number of columns, or rather then umber of x inputs each run
 
@@ -90,24 +114,40 @@ array_df = numpy.vectorize(d_sigmoid,  otypes=[numpy.float])
 x_inputes = numpy.array(training_set).astype(float);
 
 d = x_inputes[:,0][numpy.newaxis].T
-d = array_normalize_expected_digit_array(d, numpy.ones((d.shape[0], d.shape[1])))
+generator_d = d;
+
+d = numpy.append(d, generator_d, 1);
+d = numpy.append(d, generator_d, 1);
+d = numpy.append(d, generator_d, 1);
+d = numpy.append(d, generator_d, 1);
+d = numpy.append(d, generator_d, 1);
+d = numpy.append(d, generator_d, 1);
+d = numpy.append(d, generator_d, 1);
+d = numpy.append(d, generator_d, 1);
+d = numpy.append(d, generator_d, 1);
+
+## so to normalize I can just load in an array like [[0,1,2,3,4,5,6,7,8,9]] for the second parameter.
+## I do still need to create d as an array of n by 10 though. there should be a column for every final layer synapse solution out put....thingy...
+array_of_possible_solutions = numpy.array([[0,1,2,3,4,5,6,7,8,9]])
+d = array_normalize_expected_digit_array(d, array_of_possible_solutions.shape[1])
+
+
 x_inputes = x_inputes[:,1:] ## ignore first column. thats the one with the solutions.
 x_inputes = x_inputes * (0.0039)
 x_inputes = x_inputes - 0.5 ## scale it back some
-# print x_inputes.shape
-# print numpy.amax(x_inputes)
-# print d.shape
-# print numpy.amax(d)
 
+
+## initiate the values here
 m = x_inputes.shape[1]; # number of hidden nodes
-n = m;
-w1 = numpy.random.uniform(-1.0, 1.0, (m, n)); ## I THINK THIS IS THE ORDER BUT I SHOULD DOUBLE CHECK
-w2 = numpy.random.uniform(-1.0, 1.0, (n, 1));
-dp_dz = numpy.ones((x_inputes.shape[0], 1));
-# print training_set
-# quit()
+s1 = m;
+w1 = numpy.random.uniform(-1.0, 1.0, (m, s1)); ## I THINK THIS IS THE ORDER BUT I SHOULD DOUBLE CHECK
+s2 = d.shape[1] ## we'll need 10 different synapses on our last layer to generate all the solutions.
+w2 = numpy.random.uniform(-1.0, 1.0, (s1, s2)); ## here we get a 42000X10 matrix
+dp_dz = numpy.ones((1, d.shape[1]));
+
+
 i = 0;
-while numpy.amax(dp_dz) > 0.05 and i < 99:
+while numpy.amax(dp_dz) > 0.05 and i < 10:
 	print "iteration number: " + str(i);
 	i += 1
 
@@ -115,24 +155,55 @@ while numpy.amax(dp_dz) > 0.05 and i < 99:
 	z1 = array_f(y1);
 	y2 = numpy.dot(z1, w2);
 	z2 = array_f(y2);
-	dp_dz = d - z2
+	print z2.shape
+	print '------'
+	print d.shape
+	dp_dz = d - z2 # at this point this will be 42000X10
 	# print "error is: " + str(dp_dz);
 	# print dp_dz.shape
 	# print numpy.amax(dp_dz)
 
-	delta_1 = dp_dz * array_df(z2);
+	## The only reason this isn't a dot product is because the activation on the final layer synapse will be a single value for each system.
+	## a new model will need to be consider for systems where the final layer has more than one synapse
+	delta_w2 = dp_dz * array_df(z2);
+	print '--------------'
+	print 'dp_dz'
+	print dp_dz.shape
+	print '--------------'
+	print 'z2'
+	print z2.shape
+	print '--------------'
+	print 'delta_w2'
+	print delta_w2.shape
+
 	# delta_1 = delta_1[0][0];
 	# print delta_1.shape;
 
-	delta_2 = numpy.dot(delta_1, w2.T)
+	delta_w1 = numpy.dot(delta_w2, w2.T)
+	print '--------------'
+	print 'delta_w1'
+	print delta_w1.shape
+	print '--------------'
 
-	dp_dw1 = numpy.dot(x_inputes.T, delta_2)
-	dp_dw2 = numpy.dot(z1.T, delta_1)
+	dp_dw1 = numpy.dot(x_inputes.T, delta_w1)
+	dp_dw2 = numpy.dot(z1.T, delta_w2)
 
+	print 'dp_dw1'
+	print dp_dw1.shape
+	print '-------------'
+	print 'dp_dw2'
+	print dp_dw2.shape
+	print '-------------'
+	print 'z1'
+	print z1.shape
+	print '-------------'
+	print 'x_inputes'
+	print x_inputes.shape
+	print '-------------'
 	# print dp_dw1.shape
 	# print 
-	w2 += numpy.dot(z1.T, delta_1) * step_size
-	w1 += numpy.dot(x_inputes.T, delta_2) * step_size
+	w2 += dp_dw2 * step_size ## we're going to have to double check the math here because now this seems a little funny but i'm too lazy to check it now
+	w1 += dp_dw1 * step_size
 
 	print dp_dz
 	## this should write write the values of w as this becomes optimized so when this is exited everything is in an actionable state
